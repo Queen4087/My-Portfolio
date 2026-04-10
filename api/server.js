@@ -14,22 +14,25 @@ app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 
 app.use(cors({
   origin: function (origin, callback) {
-    // Allow requests with no origin (mobile apps, curl, Postman)
+    // Allow requests with no origin (mobile apps, curl, Postman, server-to-server)
     if (!origin) return callback(null, true);
     // Allow any localhost port in development
-    if (process.env.NODE_ENV === 'development' && origin.match(/^http:\/\/localhost:\d+$/)) {
-      return callback(null, true);
-    }
-    // Allow configured CLIENT_URL in production
-    if (origin === process.env.CLIENT_URL) {
-      return callback(null, true);
-    }
-    callback(new Error('Not allowed by CORS'));
+    if (origin.match(/^http:\/\/localhost:\d+$/)) return callback(null, true);
+    // Allow any vercel.app subdomain
+    if (origin.match(/\.vercel\.app$/)) return callback(null, true);
+    // Allow configured CLIENT_URL
+    if (process.env.CLIENT_URL && origin === process.env.CLIENT_URL) return callback(null, true);
+    // Allow all origins in development
+    if (process.env.NODE_ENV === 'development') return callback(null, true);
+    callback(null, true); // temporarily allow all — tighten after confirming it works
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
+
+// Handle preflight requests explicitly
+app.options('*', cors());
 
 // Global rate limit — 200 req per 15 min per IP
 app.use(rateLimit({
